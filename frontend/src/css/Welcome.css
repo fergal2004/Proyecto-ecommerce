@@ -1,0 +1,57 @@
+.welcome-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #0a0a23; /* fondo oscuro */
+  color: #fff;
+}
+
+.welcome-card {
+  text-align: center;
+  padding: 40px;
+  border-radius: 16px;
+}
+
+.welcome-logo {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 22px;
+  color: #fff;
+}
+
+.welcome-title {
+  font-size: 48px;
+  margin: 0;
+}
+
+.welcome-subtitle {
+  font-size: 20px;
+  margin-top: 10px;
+  color: #b3b3ff;
+}
+
+.btn-logout {
+  margin-top: 20px;
+  padding: 10px 18px;
+  background: #ef4444; /* rojo */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: #dc2626;
+}
+

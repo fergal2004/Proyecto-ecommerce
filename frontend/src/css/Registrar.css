@@ -1,0 +1,134 @@
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+
+  /* Degradado con tres colores */
+  background-image: linear-gradient(
+    to bottom right,
+    #f3f2f1,   /* gris muy claro */
+    #4f46e5,   /* azul suave */
+    #4338ca    /* azul violeta */
+  );
+
+  /* Para transición suave entre colores */
+  background-size: 200% 200%;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 600px;
+  background-color: #ffffff;
+  /* Fondo transparente */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Sombra para que resalte */
+}
+
+.register-title {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: rgb(0, 0, 0);
+  /* Título en color blanco */
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.p-field {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.p-inputtext {
+  width: 100%;
+  /* Asegura que ocupe todo el ancho disponible */
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: rgba(255, 255, 255, 0.2);
+  /* Fondo transparente en los inputs */
+  color: white;
+}
+
+.p-inputtext:focus {
+  border-color: #28a745;
+  /* Verde cuando está enfocado */
+  outline: none;
+}
+
+.p-inputtext:disabled {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.p-error {
+  color: red;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.p-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  text-decoration: none;
+  /* Sin subrayado */
+  color: white;
+  cursor: pointer;
+}
+
+.p-button-primary {
+  background-color: #28a745;
+  /* Botón Registrar verde */
+}
+
+.p-button-primary:hover {
+  background-color: #2ecc71;
+  /* Verde más claro al pasar el cursor */
+}
+
+.p-button-danger {
+  background-color: #dc3545;
+  /* Botón Regresar rojo */
+}
+
+.p-button-danger:hover {
+  background-color: #ff6b6b;
+  /* Rojo más claro al pasar el cursor */
+}
+
+.p-button:active {
+  transform: scale(0.95);
+  /* Efecto de "presionar" */
+}
+
+.p-button-text {
+  background-color: transparent;
+  color: white;
+  border: none;
+  text-decoration: none;
+  /* Sin subrayado */
+}
+
+.flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transparent-input {
+  background-color: transparent;
+  border: 1px solid #ccc;
+  /* Color del borde */
+  color: #fff;
+  /* Color del texto */
+}

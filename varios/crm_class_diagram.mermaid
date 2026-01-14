@@ -1,0 +1,164 @@
+classDiagram
+    class Person {
+        -Long id
+        -String name
+        -String email
+        -String phone
+        -String address
+        +getId() Long
+        +setId(Long) void
+        +getName() String
+        +setName(String) void
+        +getEmail() String
+        +setEmail(String) void
+        +getPhone() String
+        +setPhone(String) void
+        +getAddress() String
+        +setAddress(String) void
+    }
+
+    class Customer {
+        -String customerCode
+        -String taxId
+        -TaxIdType taxIdType
+        -CustomerType customerType
+        -Set~SaleOrder~ saleOrders
+        +getCustomerCode() String
+        +setCustomerCode(String) void
+        +getTaxId() String
+        +setTaxId(String) void
+        +getTaxIdType() TaxIdType
+        +setTaxIdType(TaxIdType) void
+        +getCustomerType() CustomerType
+        +setCustomerType(CustomerType) void
+        +getSaleOrders() Set~SaleOrder~
+        +setSaleOrders(Set~SaleOrder~) void
+    }
+
+    class SaleOrder {
+        -Long id
+        -String refNumber
+        -Float total
+        -Calendar registDate
+        -OrderStatus status
+        -Customer customer
+        -Set~OrderLine~ orderLines
+        -Set~Payment~ payments
+        +getId() Long
+        +setId(Long) void
+        +getRefNumber() String
+        +setRefNumber(String) void
+        +getTotal() Float
+        +setTotal(Float) void
+        +getRegistDate() Calendar
+        +setRegistDate(Calendar) void
+        +getStatus() OrderStatus
+        +setStatus(OrderStatus) void
+        +getCustomer() Customer
+        +setCustomer(Customer) void
+        +getOrderLines() Set~OrderLine~
+        +setOrderLines(Set~OrderLine~) void
+        +getPayments() Set~Payment~
+        +setPayments(Set~Payment~) void
+        +getTotalPaid() Float
+        -updateTotal() void
+    }
+
+    class OrderLine {
+        -Long id
+        -Product product
+        -Integer quantity
+        -SaleOrder saleOrder
+        +getId() Long
+        +setId(Long) void
+        +getProduct() Product
+        +setProduct(Product) void
+        +getQuantity() Integer
+        +setQuantity(Integer) void
+        +getSaleOrder() SaleOrder
+        +setSaleOrder(SaleOrder) void
+    }
+
+    class Product {
+        -Long id
+        -String name
+        -Float price
+        -String image
+        +getId() Long
+        +setId(Long) void
+        +getName() String
+        +setName(String) void
+        +getPrice() Float
+        +setPrice(Float) void
+        +getImage() String
+        +setImage(String) void
+    }
+
+    class Payment {
+        -Long id
+        -SaleOrder saleOrder
+        -Float amount
+        -Calendar paydate
+        -PaymentMethod paymentMethod
+        +getId() Long
+        +setId(Long) void
+        +getSaleOrder() SaleOrder
+        +setSaleOrder(SaleOrder) void
+        +getAmount() Float
+        +setAmount(Float) void
+        +getPaydate() Calendar
+        +setPaydate(Calendar) void
+        +getPaymentMethod() PaymentMethod
+        +setPaymentMethod(PaymentMethod) void
+    }
+
+    class OrderStatus {
+        <<enumeration>>
+        PAYED
+        PENDING
+    }
+
+    class PaymentMethod {
+        <<enumeration>>
+        CREDIT_CARD
+        DEBIT_CARD
+        CASH
+        BANK_TRANSFER
+        DEPOSIT
+    }
+
+    class CustomerType {
+        <<enumeration>>
+        REGULAR
+        VIP
+        WHOLESALE
+    }
+
+    class TaxIdType {
+        <<enumeration>>
+        RUC
+        CEDULA
+        PASSPORT
+        FOREIGN_ID
+        FINAL_CONSUMER
+    }
+
+    %% HERENCIA (flecha vacía)
+    Person <|-- Customer : hereda
+
+    %% ASOCIACIÓN bidireccional Customer-SaleOrder
+    Customer "1" --> "0..*" SaleOrder : realiza ▸
+    SaleOrder --> "1" Customer : pertenece a
+
+    %% COMPOSICIÓN (rombo negro) - Ciclo de vida dependiente
+    SaleOrder *-- "0..*" OrderLine : contiene ▸
+    SaleOrder *-- "0..*" Payment : tiene ▸
+    
+    %% AGREGACIÓN (rombo blanco) - Ciclo de vida independiente
+    OrderLine o-- "1" Product : referencia ▸
+    
+    %% ASOCIACIÓN simple con enums
+    SaleOrder --> OrderStatus : usa
+    Payment --> PaymentMethod : usa
+    Customer --> CustomerType : usa
+    Customer --> TaxIdType : usa

@@ -1,0 +1,1031 @@
+// ============================================================
+// 1. CAPA DE DOMINIO (NÚCLEO)
+// ============================================================
+
+// domain/enums/CustomerType.java
+package io.reactiveprogramming.crm.domain.enums;
+
+public enum CustomerType {
+    REGULAR("Cliente Regular"),
+    VIP("Cliente VIP"),
+    WHOLESALE("Cliente Mayorista");
+    
+    private final String description;
+    
+    CustomerType(String description) {
+        this.description = description;
+    }
+    
+    public String getDescription() {
+        return description;
+    }
+}
+
+// domain/enums/TaxIdType.java
+package io.reactiveprogramming.crm.domain.enums;
+
+public enum TaxIdType {
+    RUC("04", "Registro Único de Contribuyentes", 13),
+    CEDULA("05", "Cédula de Ciudadanía", 10),
+    PASSPORT("06", "Pasaporte", 20),
+    FOREIGN_ID("08", "Identificación del Exterior", 20),
+    FINAL_CONSUMER("07", "Consumidor Final", 13);
+    
+    private final String sriCode;
+    private final String description;
+    private final int maxLength;
+    
+    TaxIdType(String sriCode, String description, int maxLength) {
+        this.sriCode = sriCode;
+        this.description = description;
+        this.maxLength = maxLength;
+    }
+    
+    public String getSriCode() {
+        return sriCode;
+    }
+    
+    public String getDescription() {
+        return description;
+    }
+    
+    public int getMaxLength() {
+        return maxLength;
+    }
+}
+
+// domain/valueobject/TaxId.java
+package io.reactiveprogramming.crm.domain.valueobject;
+
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import io.reactiveprogramming.crm.domain.exception.InvalidTaxIdException;
+import java.util.Objects;
+
+public class TaxId {
+    private final String value;
+    private final TaxIdType type;
+    
+    public TaxId(String value, TaxIdType type) {
+        validate(value, type);
+        this.value = value;
+        this.type = type;
+    }
+    
+    private void validate(String value, TaxIdType type) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new InvalidTaxIdException("El identificador fiscal no puede estar vacío");
+        }
+        
+        if (value.length() > type.getMaxLength()) {
+            throw new InvalidTaxIdException(
+                String.format("El %s no puede exceder %d caracteres", 
+                    type.getDescription(), type.getMaxLength())
+            );
+        }
+        
+        // Validaciones específicas
+        if (type == TaxIdType.CEDULA && !isValidCedulaEcuador(value)) {
+            throw new InvalidTaxIdException("Cédula ecuatoriana inválida");
+        }
+        
+        if (type == TaxIdType.RUC && !isValidRucEcuador(value)) {
+            throw new InvalidTaxIdException("RUC ecuatoriano inválido");
+        }
+    }
+    
+    private boolean isValidCedulaEcuador(String cedula) {
+        if (cedula.length() != 10) return false;
+        
+        try {
+            int provincia = Integer.parseInt(cedula.substring(0, 2));
+            if (provincia < 1 || provincia > 24) return false;
+            
+            int[] coeficientes = {2, 1, 2, 1, 2, 1, 2, 1, 2};
+            int suma = 0;
+            
+            for (int i = 0; i < 9; i++) {
+                int digito = Integer.parseInt(String.valueOf(cedula.charAt(i)));
+                int producto = digito * coeficientes[i];
+                suma += (producto >= 10) ? producto - 9 : producto;
+            }
+            
+            int digitoVerificador = Integer.parseInt(String.valueOf(cedula.charAt(9)));
+            int residuo = suma % 10;
+            int resultado = (residuo == 0) ? 0 : 10 - residuo;
+            
+            return resultado == digitoVerificador;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
+    private boolean isValidRucEcuador(String ruc) {
+        if (ruc.length() != 13) return false;
+        
+        String cedula = ruc.substring(0, 10);
+        String establecimiento = ruc.substring(10, 13);
+        
+        return isValidCedulaEcuador(cedula) && establecimiento.matches("\\d{3}");
+    }
+    
+    public String getValue() {
+        return value;
+    }
+    
+    public TaxIdType getType() {
+        return type;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TaxId taxId = (TaxId) o;
+        return Objects.equals(value, taxId.value) && type == taxId.type;
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(value, type);
+    }
+    
+    @Override
+    public String toString() {
+        return value;
+    }
+}
+
+// domain/valueobject/CustomerCode.java
+package io.reactiveprogramming.crm.domain.valueobject;
+
+import java.util.Objects;
+
+public class CustomerCode {
+    private final String value;
+    
+    public CustomerCode(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código de cliente no puede estar vacío");
+        }
+        this.value = value.toUpperCase();
+    }
+    
+    public String getValue() {
+        return value;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CustomerCode that = (CustomerCode) o;
+        return Objects.equals(value, that.value);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(value);
+    }
+    
+    @Override
+    public String toString() {
+        return value;
+    }
+}
+
+// domain/model/Person.java
+package io.reactiveprogramming.crm.domain.model;
+
+public abstract class Person {
+    private Long id;
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+    
+    // Constructors
+    public Person() {}
+    
+    public Person(String name, String email) {
+        this.name = name;
+        this.email = email;
+    }
+    
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getPhone() {
+        return phone;
+    }
+    
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+    
+    public String getAddress() {
+        return address;
+    }
+    
+    public void setAddress(String address) {
+        this.address = address;
+    }
+}
+
+// domain/model/Customer.java
+package io.reactiveprogramming.crm.domain.model;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Customer extends Person {
+    private CustomerCode customerCode;
+    private TaxId taxId;
+    private CustomerType customerType;
+    private List<SaleOrder> saleOrders;
+    private boolean active;
+    
+    public Customer() {
+        super();
+        this.saleOrders = new ArrayList<>();
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    public Customer(String name, String email, TaxId taxId, CustomerCode customerCode) {
+        super(name, email);
+        this.taxId = taxId;
+        this.customerCode = customerCode;
+        this.saleOrders = new ArrayList<>();
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Business Logic
+    public void addOrder(SaleOrder order) {
+        if (!this.active) {
+            throw new IllegalStateException("No se pueden agregar órdenes a un cliente inactivo");
+        }
+        this.saleOrders.add(order);
+        order.setCustomer(this);
+    }
+    
+    public boolean isVip() {
+        return this.customerType == CustomerType.VIP;
+    }
+    
+    public boolean isWholesale() {
+        return this.customerType == CustomerType.WHOLESALE;
+    }
+    
+    public void promoteToVip() {
+        this.customerType = CustomerType.VIP;
+    }
+    
+    public void deactivate() {
+        this.active = false;
+    }
+    
+    public void activate() {
+        this.active = true;
+    }
+    
+    public int getTotalOrders() {
+        return saleOrders != null ? saleOrders.size() : 0;
+    }
+    
+    public float getTotalSpent() {
+        if (saleOrders == null) return 0f;
+        return saleOrders.stream()
+            .map(SaleOrder::getTotal)
+            .reduce(0f, Float::sum);
+    }
+    
+    // Getters and Setters
+    public CustomerCode getCustomerCode() {
+        return customerCode;
+    }
+    
+    public void setCustomerCode(CustomerCode customerCode) {
+        this.customerCode = customerCode;
+    }
+    
+    public TaxId getTaxId() {
+        return taxId;
+    }
+    
+    public void setTaxId(TaxId taxId) {
+        this.taxId = taxId;
+    }
+    
+    public CustomerType getCustomerType() {
+        return customerType;
+    }
+    
+    public void setCustomerType(CustomerType customerType) {
+        this.customerType = customerType;
+    }
+    
+    public List<SaleOrder> getSaleOrders() {
+        return saleOrders;
+    }
+    
+    public void setSaleOrders(List<SaleOrder> saleOrders) {
+        this.saleOrders = saleOrders;
+    }
+    
+    public boolean isActive() {
+        return active;
+    }
+    
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+}
+
+// domain/model/SaleOrder.java (Simplificada para el ejemplo)
+package io.reactiveprogramming.crm.domain.model;
+
+public class SaleOrder {
+    private Long id;
+    private String refNumber;
+    private Float total;
+    private Customer customer;
+    
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getRefNumber() {
+        return refNumber;
+    }
+    
+    public void setRefNumber(String refNumber) {
+        this.refNumber = refNumber;
+    }
+    
+    public Float getTotal() {
+        return total;
+    }
+    
+    public void setTotal(Float total) {
+        this.total = total;
+    }
+    
+    public Customer getCustomer() {
+        return customer;
+    }
+    
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+}
+
+// domain/exception/InvalidTaxIdException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class InvalidTaxIdException extends RuntimeException {
+    public InvalidTaxIdException(String message) {
+        super(message);
+    }
+}
+
+// domain/exception/CustomerNotFoundException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class CustomerNotFoundException extends RuntimeException {
+    public CustomerNotFoundException(String message) {
+        super(message);
+    }
+    
+    public CustomerNotFoundException(Long id) {
+        super("Cliente no encontrado con ID: " + id);
+    }
+}
+
+// domain/exception/DuplicateTaxIdException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class DuplicateTaxIdException extends RuntimeException {
+    public DuplicateTaxIdException(String message) {
+        super(message);
+    }
+}
+
+// domain/repository/CustomerRepository.java (INTERFAZ - Puerto)
+package io.reactiveprogramming.crm.domain.repository;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import java.util.List;
+import java.util.Optional;
+
+public interface CustomerRepository {
+    Customer save(Customer customer);
+    Optional<Customer> findById(Long id);
+    Optional<Customer> findByCustomerCode(CustomerCode customerCode);
+    Optional<Customer> findByTaxId(TaxId taxId);
+    List<Customer> findAll();
+    List<Customer> findByActive(boolean active);
+    void deleteById(Long id);
+    boolean existsByTaxId(TaxId taxId);
+}
+
+// domain/service/CustomerService.java (INTERFAZ)
+package io.reactiveprogramming.crm.domain.service;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import java.util.List;
+
+public interface CustomerService {
+    Customer createCustomer(Customer customer);
+    Customer updateCustomer(Long id, Customer customer);
+    Customer getCustomerById(Long id);
+    Customer getCustomerByCode(String customerCode);
+    List<Customer> getAllCustomers();
+    List<Customer> getActiveCustomers();
+    void deactivateCustomer(Long id);
+    void activateCustomer(Long id);
+    void promoteToVip(Long id);
+}
+
+// ============================================================
+// 2. CAPA DE APLICACIÓN (Casos de Uso)
+// ============================================================
+
+// application/dto/request/CreateCustomerRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+
+public class CreateCustomerRequest {
+    
+    @NotBlank(message = "El nombre es obligatorio")
+    private String name;
+    
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email debe ser válido")
+    private String email;
+    
+    private String phone;
+    private String address;
+    
+    @NotBlank(message = "El identificador fiscal es obligatorio")
+    private String taxId;
+    
+    @NotNull(message = "El tipo de identificación es obligatorio")
+    private TaxIdType taxIdType;
+    
+    private CustomerType customerType;
+    
+    // Constructors
+    public CreateCustomerRequest() {
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Getters and Setters
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getPhone() {
+        return phone;
+    }
+    
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+    
+    public String getAddress() {
+        return address;
+    }
+    
+    public void setAddress(String address) {
+        this.address = address;
+    }
+    
+    public String getTaxId() {
+        return taxId;
+    }
+    
+    public void setTaxId(String taxId) {
+        this.taxId = taxId;
+    }
+    
+    public TaxIdType getTaxIdType() {
+        return taxIdType;
+    }
+    
+    public void setTaxIdType(TaxIdType taxIdType) {
+        this.taxIdType = taxIdType;
+    }
+    
+    public CustomerType getCustomerType() {
+        return customerType;
+    }
+    
+    public void setCustomerType(CustomerType customerType) {
+        this.customerType = customerType;
+    }
+}
+
+// application/dto/request/UpdateCustomerRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import javax.validation.constraints.Email;
+
+public class UpdateCustomerRequest {
+    private String name;
+    
+    @Email(message = "El email debe ser válido")
+    private String email;
+    
+    private String phone;
+    private String address;
+    
+    // Getters and Setters
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getPhone() {
+        return phone;
+    }
+    
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+    
+    public String getAddress() {
+        return address;
+    }
+    
+    public void setAddress(String address) {
+        this.address = address;
+    }
+}
+
+// application/dto/response/CustomerResponse.java
+package io.reactiveprogramming.crm.application.dto.response;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+
+public class CustomerResponse {
+    private Long id;
+    private String customerCode;
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+    private String taxId;
+    private TaxIdType taxIdType;
+    private CustomerType customerType;
+    private boolean active;
+    private int totalOrders;
+    private float totalSpent;
+    
+    // Constructors
+    public CustomerResponse() {}
+    
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getCustomerCode() {
+        return customerCode;
+    }
+    
+    public void setCustomerCode(String customerCode) {
+        this.customerCode = customerCode;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getPhone() {
+        return phone;
+    }
+    
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+    
+    public String getAddress() {
+        return address;
+    }
+    
+    public void setAddress(String address) {
+        this.address = address;
+    }
+    
+    public String getTaxId() {
+        return taxId;
+    }
+    
+    public void setTaxId(String taxId) {
+        this.taxId = taxId;
+    }
+    
+    public TaxIdType getTaxIdType() {
+        return taxIdType;
+    }
+    
+    public void setTaxIdType(TaxIdType taxIdType) {
+        this.taxIdType = taxIdType;
+    }
+    
+    public CustomerType getCustomerType() {
+        return customerType;
+    }
+    
+    public void setCustomerType(CustomerType customerType) {
+        this.customerType = customerType;
+    }
+    
+    public boolean isActive() {
+        return active;
+    }
+    
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+    
+    public int getTotalOrders() {
+        return totalOrders;
+    }
+    
+    public void setTotalOrders(int totalOrders) {
+        this.totalOrders = totalOrders;
+    }
+    
+    public float getTotalSpent() {
+        return totalSpent;
+    }
+    
+    public void setTotalSpent(float totalSpent) {
+        this.totalSpent = totalSpent;
+    }
+}
+
+// application/mapper/CustomerMapper.java
+package io.reactiveprogramming.crm.application.mapper;
+
+import io.reactiveprogramming.crm.application.dto.request.CreateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.response.CustomerResponse;
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import org.springframework.stereotype.Component;
+import java.time.Year;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Component
+public class CustomerMapper {
+    
+    private final AtomicInteger counter = new AtomicInteger(1);
+    
+    public Customer toDomain(CreateCustomerRequest request) {
+        Customer customer = new Customer();
+        customer.setName(request.getName());
+        customer.setEmail(request.getEmail());
+        customer.setPhone(request.getPhone());
+        customer.setAddress(request.getAddress());
+        
+        TaxId taxId = new TaxId(request.getTaxId(), request.getTaxIdType());
+        customer.setTaxId(taxId);
+        
+        CustomerCode customerCode = generateCustomerCode(request.getCustomerType());
+        customer.setCustomerCode(customerCode);
+        
+        customer.setCustomerType(request.getCustomerType());
+        customer.setActive(true);
+        
+        return customer;
+    }
+    
+    public void updateDomain(Customer customer, UpdateCustomerRequest request) {
+        if (request.getName() != null) {
+            customer.setName(request.getName());
+        }
+        if (request.getEmail() != null) {
+            customer.setEmail(request.getEmail());
+        }
+        if (request.getPhone() != null) {
+            customer.setPhone(request.getPhone());
+        }
+        if (request.getAddress() != null) {
+            customer.setAddress(request.getAddress());
+        }
+    }
+    
+    public CustomerResponse toResponse(Customer customer) {
+        CustomerResponse response = new CustomerResponse();
+        response.setId(customer.getId());
+        response.setCustomerCode(customer.getCustomerCode().getValue());
+        response.setName(customer.getName());
+        response.setEmail(customer.getEmail());
+        response.setPhone(customer.getPhone());
+        response.setAddress(customer.getAddress());
+        response.setTaxId(customer.getTaxId().getValue());
+        response.setTaxIdType(customer.getTaxId().getType());
+        response.setCustomerType(customer.getCustomerType());
+        response.setActive(customer.isActive());
+        response.setTotalOrders(customer.getTotalOrders());
+        response.setTotalSpent(customer.getTotalSpent());
+        
+        return response;
+    }
+    
+    private CustomerCode generateCustomerCode(io.reactiveprogramming.crm.domain.enums.CustomerType type) {
+        String prefix = switch (type) {
+            case VIP -> "VIP";
+            case WHOLESALE -> "WHO";
+            default -> "REG";
+        };
+        
+        String year = String.valueOf(Year.now().getValue());
+        String sequence = String.format("%05d", counter.getAndIncrement());
+        
+        return new CustomerCode(prefix + "-" + year + "-" + sequence);
+    }
+}
+
+// application/service/CustomerServiceImpl.java
+package io.reactiveprogramming.crm.application.service;
+
+import io.reactiveprogramming.crm.domain.exception.CustomerNotFoundException;
+import io.reactiveprogramming.crm.domain.exception.DuplicateTaxIdException;
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.repository.CustomerRepository;
+import io.reactiveprogramming.crm.domain.service.CustomerService;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@Transactional
+public class CustomerServiceImpl implements CustomerService {
+    
+    private final CustomerRepository customerRepository;
+    
+    @Autowired
+    public CustomerServiceImpl(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+    
+    @Override
+    public Customer createCustomer(Customer customer) {
+        // Validar que no exista el TaxId
+        if (customerRepository.existsByTaxId(customer.getTaxId())) {
+            throw new DuplicateTaxIdException(
+                "Ya existe un cliente con el identificador fiscal: " + customer.getTaxId().getValue()
+            );
+        }
+        
+        return customerRepository.save(customer);
+    }
+    
+    @Override
+    public Customer updateCustomer(Long id, Customer customer) {
+        Customer existing = customerRepository.findById(id)
+            .orElseThrow(() -> new CustomerNotFoundException(id));
+        
+        // Actualizar campos
+        existing.setName(customer.getName());
+        existing.setEmail(customer.getEmail());
+        existing.setPhone(customer.getPhone());
+        existing.setAddress(customer.getAddress());
+        
+        return customerRepository.save(existing);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Customer getCustomerById(Long id) {
+        return customerRepository.findById(id)
+            .orElseThrow(() -> new CustomerNotFoundException(id));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Customer getCustomerByCode(String customerCode) {
+        CustomerCode code = new CustomerCode(customerCode);
+        return customerRepository.findByCustomerCode(code)
+            .orElseThrow(() -> new CustomerNotFoundException(
+                "Cliente no encontrado con código: " + customerCode
+            ));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Customer> getAllCustomers() {
+        return customerRepository.findAll();
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Customer> getActiveCustomers() {
+        return customerRepository.findByActive(true);
+    }
+    
+    @Override
+    public void deactivateCustomer(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.deactivate();
+        customerRepository.save(customer);
+    }
+    
+    @Override
+    public void activateCustomer(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.activate();
+        customerRepository.save(customer);
+    }
+    
+    @Override
+    public void promoteToVip(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.promoteToVip();
+        customerRepository.save(customer);
+    }
+}
+
+// ============================================================
+// 3. CAPA DE INFRAESTRUCTURA (Adaptadores)
+// ============================================================
+
+// infrastructure/persistence/entity/CustomerEntity.java
+package io.reactiveprogramming.crm.infrastructure.persistence.entity;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "customers", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"tax_id", "tax_id_type"}),
+    @UniqueConstraint(columnNames = "customer_code")
+})
+public class CustomerEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "customer_code", nullable = false, unique = true, length = 50)
+    private String customerCode;
+    
+    @Column(name = "name", nullable = false, length = 250)
+    private String name;
+    
+    @Column(name = "email", nullable = false, length = 100)
+    private String email;
+    
+    @Column(name = "phone", length = 20)
+    private String phone;
+    
+    @Column(name = "address", length = 500)
+    private String address;
+    
+    @Column(name = "tax_id", nullable = false, length = 20)
+    private String taxId;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_id_type", nullable = false, length = 20)
+    private TaxIdType taxIdType;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "customer_type", nullable = false, length = 20)
+    private CustomerType customerType;
+    
+    @Column(name = "active", nullable = false)
+    private Boolean active;
+    
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SaleOrderEntity> saleOrders = new ArrayList<>();
+    
+    // Constructors
+    public CustomerEntity() {
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getCustomerCode() {
+        return customerCode;
+    }
+    
+    public void setCustomerCode(String customerCode) {
+        this.customerCode = customerCode;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getPhone() {
+        return phone;
+    }
+    
+    public void setPhone

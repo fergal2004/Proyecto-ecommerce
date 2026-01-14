@@ -1,0 +1,78 @@
+.olvidar-container {
+    background-image: linear-gradient(to bottom right, #f3f2f1, #4f95e6, #4f46e5);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .olvidar-main-container {
+    max-width: 400px;
+  }
+  
+  .olvidar-paper {
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.904);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+  
+  .olvidar-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    color: rgb(165, 165, 165);
+  }
+  
+  .olvidar-form {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .olvidar-input {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+  }
+  
+  .olvidar-submit-button {
+    background-color: #28a745;
+    color: white;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  
+  .olvidar-submit-button:hover {
+    background-color: #2ecc71;
+  }
+  
+  .olvidar-back-button {
+    background-color: transparent;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+    transition: color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  .olvidar-back-button:hover {
+    background-color: transparent;
+    color: white;
+    border-color: white;
+  }
+  
+  .olvidar-message {
+    text-align: center;
+    margin-top: 16px;
+    padding: 8px;
+    border-radius: 5px;
+  }
+  
+  .olvidar-message.success {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .olvidar-message.error {
+    background-color: #dc3545;
+    color: white;
+  }
+  

@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    participant Cliente as Cliente (Usuario)
+    participant Interfaz as Interfaz Web (Visible)
+    participant Gateway as API Gateway (Seguridad)
+    participant Backend as Microservicios (Invisible)
+    participant BD as Base de Datos
+
+    Note over Cliente, Interfaz: FASE 1: NAVEGACIÓN
+    Cliente->>Interfaz: Busca productos (Filtro Precio/Nombre)
+    Interfaz->>Gateway: GET /api/v1/products/search
+    Gateway->>Backend: ProductService.searchProducts()
+    Backend->>BD: SELECT * FROM Products...
+    BD-->>Interfaz: Lista de productos
+
+    Note over Cliente, Interfaz: FASE 2: ADICIÓN Y CHECKOUT
+    Cliente->>Interfaz: Añade al carrito y confirma
+    Interfaz->>Gateway: POST /api/v1/orders
+    Gateway->>Backend: OrderService.createOrder()
+    Backend->>Backend: Validar Stock (ProductClient)
+    Backend->>Backend: Validar Cliente (CustomerClient)
+    Backend->>BD: INSERT Order & OrderLines
+    Backend-->>Interfaz: Orden Creada (ID: 1024)
+
+    Note over Cliente, Interfaz: FASE 3: PAGO
+    Cliente->>Interfaz: Ingresa datos de pago
+    Interfaz->>Gateway: POST /api/v1/orders/1024/payments
+    Gateway->>Backend: OrderService.addPayment()
+    Backend->>BD: Update Payment Status
+
+    Note over Backend, BD: FASE 4: SOPORTE Y ENTREGA
+    Backend->>BD: PATCH /orders/1024/ship (Staff Action)
+    Backend->>BD: PATCH /orders/1024/deliver (System Action)

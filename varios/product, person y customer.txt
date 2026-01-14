@@ -1,0 +1,2575 @@
+// ============================================================
+// DOMAIN LAYER - ENUMS
+// ============================================================
+
+// domain/enums/CustomerType.java
+package io.reactiveprogramming.crm.domain.enums;
+
+public enum CustomerType {
+    REGULAR("Cliente Regular"),
+    VIP("Cliente VIP"),
+    WHOLESALE("Cliente Mayorista");
+    
+    private final String description;
+    
+    CustomerType(String description) {
+        this.description = description;
+    }
+    
+    public String getDescription() {
+        return description;
+    }
+}
+
+// domain/enums/TaxIdType.java
+package io.reactiveprogramming.crm.domain.enums;
+
+public enum TaxIdType {
+    RUC("04", "Registro Único de Contribuyentes", 13),
+    CEDULA("05", "Cédula de Ciudadanía", 10),
+    PASSPORT("06", "Pasaporte", 20),
+    FOREIGN_ID("08", "Identificación del Exterior", 20),
+    FINAL_CONSUMER("07", "Consumidor Final", 13);
+    
+    private final String sriCode;
+    private final String description;
+    private final int maxLength;
+    
+    TaxIdType(String sriCode, String description, int maxLength) {
+        this.sriCode = sriCode;
+        this.description = description;
+        this.maxLength = maxLength;
+    }
+    
+    public String getSriCode() { return sriCode; }
+    public String getDescription() { return description; }
+    public int getMaxLength() { return maxLength; }
+}
+
+// ============================================================
+// DOMAIN LAYER - VALUE OBJECTS
+// ============================================================
+
+// domain/valueobject/TaxId.java
+package io.reactiveprogramming.crm.domain.valueobject;
+
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import io.reactiveprogramming.crm.domain.exception.InvalidTaxIdException;
+import java.util.Objects;
+
+public class TaxId {
+    private final String value;
+    private final TaxIdType type;
+    
+    public TaxId(String value, TaxIdType type) {
+        validate(value, type);
+        this.value = value;
+        this.type = type;
+    }
+    
+    private void validate(String value, TaxIdType type) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new InvalidTaxIdException("El identificador fiscal no puede estar vacío");
+        }
+        if (value.length() > type.getMaxLength()) {
+            throw new InvalidTaxIdException(
+                String.format("El %s no puede exceder %d caracteres", 
+                    type.getDescription(), type.getMaxLength())
+            );
+        }
+    }
+    
+    public String getValue() { return value; }
+    public TaxIdType getType() { return type; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TaxId taxId = (TaxId) o;
+        return Objects.equals(value, taxId.value) && type == taxId.type;
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(value, type);
+    }
+    
+    @Override
+    public String toString() {
+        return value;
+    }
+}
+
+// domain/valueobject/CustomerCode.java
+package io.reactiveprogramming.crm.domain.valueobject;
+
+import java.util.Objects;
+
+public class CustomerCode {
+    private final String value;
+    
+    public CustomerCode(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código de cliente no puede estar vacío");
+        }
+        this.value = value.toUpperCase();
+    }
+    
+    public String getValue() { return value; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CustomerCode that = (CustomerCode) o;
+        return Objects.equals(value, that.value);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(value);
+    }
+    
+    @Override
+    public String toString() {
+        return value;
+    }
+}
+
+// domain/valueobject/Money.java
+package io.reactiveprogramming.crm.domain.valueobject;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Objects;
+
+public class Money {
+    private final BigDecimal amount;
+    private final String currency;
+    
+    public Money(BigDecimal amount, String currency) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("El monto no puede ser negativo");
+        }
+        this.amount = amount.setScale(2, RoundingMode.HALF_UP);
+        this.currency = currency != null ? currency : "USD";
+    }
+    
+    public Money(double amount) {
+        this(BigDecimal.valueOf(amount), "USD");
+    }
+    
+    public Money add(Money other) {
+        if (!this.currency.equals(other.currency)) {
+            throw new IllegalArgumentException("No se pueden sumar montos en diferentes monedas");
+        }
+        return new Money(this.amount.add(other.amount), this.currency);
+    }
+    
+    public Money subtract(Money other) {
+        if (!this.currency.equals(other.currency)) {
+            throw new IllegalArgumentException("No se pueden restar montos en diferentes monedas");
+        }
+        return new Money(this.amount.subtract(other.amount), this.currency);
+    }
+    
+    public Money multiply(int quantity) {
+        return new Money(this.amount.multiply(BigDecimal.valueOf(quantity)), this.currency);
+    }
+    
+    public boolean isGreaterThan(Money other) {
+        return this.amount.compareTo(other.amount) > 0;
+    }
+    
+    public boolean isLessThan(Money other) {
+        return this.amount.compareTo(other.amount) < 0;
+    }
+    
+    public BigDecimal getAmount() { return amount; }
+    public String getCurrency() { return currency; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Money money = (Money) o;
+        return Objects.equals(amount, money.amount) && Objects.equals(currency, money.currency);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(amount, currency);
+    }
+    
+    @Override
+    public String toString() {
+        return currency + " " + amount.toString();
+    }
+}
+
+// ============================================================
+// DOMAIN LAYER - MODELS
+// ============================================================
+
+// domain/model/Person.java
+package io.reactiveprogramming.crm.domain.model;
+
+public abstract class Person {
+    private Long id;
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+    
+    public Person() {}
+    
+    public Person(String name, String email) {
+        this.name = name;
+        this.email = email;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+}
+
+// domain/model/Customer.java
+package io.reactiveprogramming.crm.domain.model;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Customer extends Person {
+    private CustomerCode customerCode;
+    private TaxId taxId;
+    private CustomerType customerType;
+    private boolean active;
+    
+    public Customer() {
+        super();
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    public Customer(String name, String email, TaxId taxId, CustomerCode customerCode) {
+        super(name, email);
+        this.taxId = taxId;
+        this.customerCode = customerCode;
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Business Logic
+    public boolean isVip() {
+        return this.customerType == CustomerType.VIP;
+    }
+    
+    public boolean isWholesale() {
+        return this.customerType == CustomerType.WHOLESALE;
+    }
+    
+    public void promoteToVip() {
+        this.customerType = CustomerType.VIP;
+    }
+    
+    public void deactivate() {
+        if (!this.active) {
+            throw new IllegalStateException("El cliente ya está inactivo");
+        }
+        this.active = false;
+    }
+    
+    public void activate() {
+        if (this.active) {
+            throw new IllegalStateException("El cliente ya está activo");
+        }
+        this.active = true;
+    }
+    
+    // Getters and Setters
+    public CustomerCode getCustomerCode() { return customerCode; }
+    public void setCustomerCode(CustomerCode customerCode) { this.customerCode = customerCode; }
+    
+    public TaxId getTaxId() { return taxId; }
+    public void setTaxId(TaxId taxId) { this.taxId = taxId; }
+    
+    public CustomerType getCustomerType() { return customerType; }
+    public void setCustomerType(CustomerType customerType) { this.customerType = customerType; }
+    
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+}
+
+// domain/model/Product.java
+package io.reactiveprogramming.crm.domain.model;
+
+import io.reactiveprogramming.crm.domain.valueobject.Money;
+
+public class Product {
+    private Long id;
+    private String name;
+    private String description;
+    private Money price;
+    private String imageUrl;
+    private Integer stock;
+    private boolean active;
+    private String sku;
+    
+    public Product() {
+        this.active = true;
+        this.stock = 0;
+    }
+    
+    public Product(String name, Money price) {
+        this();
+        this.name = name;
+        this.price = price;
+    }
+    
+    // Business Logic
+    public boolean isAvailable() {
+        return this.active && this.stock > 0;
+    }
+    
+    public void increaseStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor a cero");
+        }
+        this.stock += quantity;
+    }
+    
+    public void decreaseStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor a cero");
+        }
+        if (this.stock < quantity) {
+            throw new IllegalStateException("Stock insuficiente. Disponible: " + this.stock);
+        }
+        this.stock -= quantity;
+    }
+    
+    public void deactivate() {
+        this.active = false;
+    }
+    
+    public void activate() {
+        this.active = true;
+    }
+    
+    public void updatePrice(Money newPrice) {
+        if (newPrice == null) {
+            throw new IllegalArgumentException("El precio no puede ser nulo");
+        }
+        this.price = newPrice;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public Money getPrice() { return price; }
+    public void setPrice(Money price) { this.price = price; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public Integer getStock() { return stock; }
+    public void setStock(Integer stock) { this.stock = stock; }
+    
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+    
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
+}
+
+// ============================================================
+// DOMAIN LAYER - EXCEPTIONS
+// ============================================================
+
+// domain/exception/InvalidTaxIdException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class InvalidTaxIdException extends RuntimeException {
+    public InvalidTaxIdException(String message) {
+        super(message);
+    }
+}
+
+// domain/exception/CustomerNotFoundException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class CustomerNotFoundException extends RuntimeException {
+    public CustomerNotFoundException(String message) {
+        super(message);
+    }
+    
+    public CustomerNotFoundException(Long id) {
+        super("Cliente no encontrado con ID: " + id);
+    }
+}
+
+// domain/exception/ProductNotFoundException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class ProductNotFoundException extends RuntimeException {
+    public ProductNotFoundException(String message) {
+        super(message);
+    }
+    
+    public ProductNotFoundException(Long id) {
+        super("Producto no encontrado con ID: " + id);
+    }
+}
+
+// domain/exception/DuplicateTaxIdException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class DuplicateTaxIdException extends RuntimeException {
+    public DuplicateTaxIdException(String message) {
+        super(message);
+    }
+}
+
+// domain/exception/InsufficientStockException.java
+package io.reactiveprogramming.crm.domain.exception;
+
+public class InsufficientStockException extends RuntimeException {
+    public InsufficientStockException(String message) {
+        super(message);
+    }
+}
+
+// ============================================================
+// DOMAIN LAYER - REPOSITORIES (INTERFACES)
+// ============================================================
+
+// domain/repository/CustomerRepository.java
+package io.reactiveprogramming.crm.domain.repository;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import java.util.List;
+import java.util.Optional;
+
+public interface CustomerRepository {
+    Customer save(Customer customer);
+    Optional<Customer> findById(Long id);
+    Optional<Customer> findByCustomerCode(CustomerCode customerCode);
+    Optional<Customer> findByTaxId(TaxId taxId);
+    List<Customer> findAll();
+    List<Customer> findByActive(boolean active);
+    void deleteById(Long id);
+    boolean existsByTaxId(TaxId taxId);
+}
+
+// domain/repository/ProductRepository.java
+package io.reactiveprogramming.crm.domain.repository;
+
+import io.reactiveprogramming.crm.domain.model.Product;
+import java.util.List;
+import java.util.Optional;
+
+public interface ProductRepository {
+    Product save(Product product);
+    Optional<Product> findById(Long id);
+    Optional<Product> findBySku(String sku);
+    List<Product> findAll();
+    List<Product> findByActive(boolean active);
+    List<Product> findByNameContaining(String name);
+    void deleteById(Long id);
+    boolean existsBySku(String sku);
+}
+
+// ============================================================
+// DOMAIN LAYER - SERVICES (INTERFACES)
+// ============================================================
+
+// domain/service/CustomerService.java
+package io.reactiveprogramming.crm.domain.service;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import java.util.List;
+
+public interface CustomerService {
+    Customer createCustomer(Customer customer);
+    Customer updateCustomer(Long id, Customer customer);
+    Customer getCustomerById(Long id);
+    Customer getCustomerByCode(String customerCode);
+    List<Customer> getAllCustomers();
+    List<Customer> getActiveCustomers();
+    void deactivateCustomer(Long id);
+    void activateCustomer(Long id);
+    void promoteToVip(Long id);
+}
+
+// domain/service/ProductService.java
+package io.reactiveprogramming.crm.domain.service;
+
+import io.reactiveprogramming.crm.domain.model.Product;
+import java.util.List;
+
+public interface ProductService {
+    Product createProduct(Product product);
+    Product updateProduct(Long id, Product product);
+    Product getProductById(Long id);
+    Product getProductBySku(String sku);
+    List<Product> getAllProducts();
+    List<Product> getActiveProducts();
+    List<Product> searchProducts(String name);
+    void deactivateProduct(Long id);
+    void activateProduct(Long id);
+    void updateStock(Long id, int quantity);
+}
+
+// ============================================================
+// APPLICATION LAYER - DTOs REQUEST
+// ============================================================
+
+// application/dto/request/CreateCustomerRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+
+public class CreateCustomerRequest {
+    @NotBlank(message = "El nombre es obligatorio")
+    private String name;
+    
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email debe ser válido")
+    private String email;
+    
+    private String phone;
+    private String address;
+    
+    @NotBlank(message = "El identificador fiscal es obligatorio")
+    private String taxId;
+    
+    @NotNull(message = "El tipo de identificación es obligatorio")
+    private TaxIdType taxIdType;
+    
+    private CustomerType customerType;
+    
+    public CreateCustomerRequest() {
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Getters and Setters
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getTaxId() { return taxId; }
+    public void setTaxId(String taxId) { this.taxId = taxId; }
+    
+    public TaxIdType getTaxIdType() { return taxIdType; }
+    public void setTaxIdType(TaxIdType taxIdType) { this.taxIdType = taxIdType; }
+    
+    public CustomerType getCustomerType() { return customerType; }
+    public void setCustomerType(CustomerType customerType) { this.customerType = customerType; }
+}
+
+// application/dto/request/UpdateCustomerRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import javax.validation.constraints.Email;
+
+public class UpdateCustomerRequest {
+    private String name;
+    
+    @Email(message = "El email debe ser válido")
+    private String email;
+    private String phone;
+    private String address;
+    
+    // Getters and Setters
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+}
+
+// application/dto/request/CreateProductRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
+public class CreateProductRequest {
+    @NotBlank(message = "El nombre es obligatorio")
+    private String name;
+    
+    private String description;
+    
+    @NotNull(message = "El precio es obligatorio")
+    @DecimalMin(value = "0.0", inclusive = false, message = "El precio debe ser mayor a cero")
+    private BigDecimal price;
+    
+    private String imageUrl;
+    
+    @Min(value = 0, message = "El stock no puede ser negativo")
+    private Integer stock;
+    
+    @NotBlank(message = "El SKU es obligatorio")
+    private String sku;
+    
+    public CreateProductRequest() {
+        this.stock = 0;
+    }
+    
+    // Getters and Setters
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public Integer getStock() { return stock; }
+    public void setStock(Integer stock) { this.stock = stock; }
+    
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
+}
+
+// application/dto/request/UpdateProductRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import javax.validation.constraints.DecimalMin;
+import java.math.BigDecimal;
+
+public class UpdateProductRequest {
+    private String name;
+    private String description;
+    
+    @DecimalMin(value = "0.0", inclusive = false, message = "El precio debe ser mayor a cero")
+    private BigDecimal price;
+    
+    private String imageUrl;
+    
+    // Getters and Setters
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+}
+
+// application/dto/request/UpdateStockRequest.java
+package io.reactiveprogramming.crm.application.dto.request;
+
+import javax.validation.constraints.NotNull;
+
+public class UpdateStockRequest {
+    @NotNull(message = "La cantidad es obligatoria")
+    private Integer quantity;
+    
+    private String operation; // "ADD" or "SUBTRACT"
+    
+    public UpdateStockRequest() {
+        this.operation = "ADD";
+    }
+    
+    // Getters and Setters
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    
+    public String getOperation() { return operation; }
+    public void setOperation(String operation) { this.operation = operation; }
+}
+
+// ============================================================
+// APPLICATION LAYER - DTOs RESPONSE
+// ============================================================
+
+// application/dto/response/CustomerResponse.java
+package io.reactiveprogramming.crm.application.dto.response;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+
+public class CustomerResponse {
+    private Long id;
+    private String customerCode;
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+    private String taxId;
+    private TaxIdType taxIdType;
+    private CustomerType customerType;
+    private boolean active;
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getCustomerCode() { return customerCode; }
+    public void setCustomerCode(String customerCode) { this.customerCode = customerCode; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getTaxId() { return taxId; }
+    public void setTaxId(String taxId) { this.taxId = taxId; }
+    
+    public TaxIdType getTaxIdType() { return taxIdType; }
+    public void setTaxIdType(TaxIdType taxIdType) { this.taxIdType = taxIdType; }
+    
+    public CustomerType getCustomerType() { return customerType; }
+    public void setCustomerType(CustomerType customerType) { this.customerType = customerType; }
+    
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+}
+
+// application/dto/response/ProductResponse.java
+package io.reactiveprogramming.crm.application.dto.response;
+
+import java.math.BigDecimal;
+
+public class ProductResponse {
+    private Long id;
+    private String name;
+    private String description;
+    private BigDecimal price;
+    private String currency;
+    private String imageUrl;
+    private Integer stock;
+    private boolean active;
+    private boolean available;
+    private String sku;
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public Integer getStock() { return stock; }
+    public void setStock(Integer stock) { this.stock = stock; }
+    
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+    
+    public boolean isAvailable() { return available; }
+    public void setAvailable(boolean available) { this.available = available; }
+    
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
+}
+
+// ============================================================
+// APPLICATION LAYER - MAPPERS
+// ============================================================
+
+// application/mapper/CustomerMapper.java
+package io.reactiveprogramming.crm.application.mapper;
+
+import io.reactiveprogramming.crm.application.dto.request.CreateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.response.CustomerResponse;
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import org.springframework.stereotype.Component;
+import java.time.Year;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Component
+public class CustomerMapper {
+    private final AtomicInteger counter = new AtomicInteger(1);
+    
+    public Customer toDomain(CreateCustomerRequest request) {
+        Customer customer = new Customer();
+        customer.setName(request.getName());
+        customer.setEmail(request.getEmail());
+        customer.setPhone(request.getPhone());
+        customer.setAddress(request.getAddress());
+        
+        TaxId taxId = new TaxId(request.getTaxId(), request.getTaxIdType());
+        customer.setTaxId(taxId);
+        
+        CustomerCode customerCode = generateCustomerCode(request.getCustomerType());
+        customer.setCustomerCode(customerCode);
+        
+        customer.setCustomerType(request.getCustomerType());
+        customer.setActive(true);
+        
+        return customer;
+    }
+    
+    public void updateDomain(Customer customer, UpdateCustomerRequest request) {
+        if (request.getName() != null) customer.setName(request.getName());
+        if (request.getEmail() != null) customer.setEmail(request.getEmail());
+        if (request.getPhone() != null) customer.setPhone(request.getPhone());
+        if (request.getAddress() != null) customer.setAddress(request.getAddress());
+    }
+    
+    public CustomerResponse toResponse(Customer customer) {
+        CustomerResponse response = new CustomerResponse();
+        response.setId(customer.getId());
+        response.setCustomerCode(customer.getCustomerCode().getValue());
+        response.setName(customer.getName());
+        response.setEmail(customer.getEmail());
+        response.setPhone(customer.getPhone());
+        response.setAddress(customer.getAddress());
+        response.setTaxId(customer.getTaxId().getValue());
+        response.setTaxIdType(customer.getTaxId().getType());
+        response.setCustomerType(customer.getCustomerType());
+        response.setActive(customer.isActive());
+        
+        return response;
+    }
+    
+    private CustomerCode generateCustomerCode(io.reactiveprogramming.crm.domain.enums.CustomerType type) {
+        String prefix = switch (type) {
+            case VIP -> "VIP";
+            case WHOLESALE -> "WHO";
+            default -> "REG";
+        };
+        
+        String year = String.valueOf(Year.now().getValue());
+        String sequence = String.format("%05d", counter.getAndIncrement());
+        
+        return new CustomerCode(prefix + "-" + year + "-" + sequence);
+    }
+}
+
+// application/mapper/ProductMapper.java
+package io.reactiveprogramming.crm.application.mapper;
+
+import io.reactiveprogramming.crm.application.dto.request.CreateProductRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateProductRequest;
+import io.reactiveprogramming.crm.application.dto.response.ProductResponse;
+import io.reactiveprogramming.crm.domain.model.Product;
+import io.reactiveprogramming.crm.domain.valueobject.Money;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ProductMapper {
+    
+    public Product toDomain(CreateProductRequest request) {
+        Product product = new Product();
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setPrice(new Money(request.getPrice(), "USD"));
+        product.setImageUrl(request.getImageUrl());
+        product.setStock(request.getStock());
+        product.setSku(request.getSku().toUpperCase());
+        product.setActive(true);
+        
+        return product;
+    }
+    
+    public void updateDomain(Product product, UpdateProductRequest request) {
+        if (request.getName() != null) {
+            product.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            product.setDescription(request.getDescription());
+        }
+        if (request.getPrice() != null) {
+            product.updatePrice(new Money(request.getPrice(), "USD"));
+        }
+        if (request.getImageUrl() != null) {
+            product.setImageUrl(request.getImageUrl());
+        }
+    }
+    
+    public ProductResponse toResponse(Product product) {
+        ProductResponse response = new ProductResponse();
+        response.setId(product.getId());
+        response.setName(product.getName());
+        response.setDescription(product.getDescription());
+        response.setPrice(product.getPrice().getAmount());
+        response.setCurrency(product.getPrice().getCurrency());
+        response.setImageUrl(product.getImageUrl());
+        response.setStock(product.getStock());
+        response.setActive(product.isActive());
+        response.setAvailable(product.isAvailable());
+        response.setSku(product.getSku());
+        
+        return response;
+    }
+}
+
+// ============================================================
+// APPLICATION LAYER - SERVICES IMPLEMENTATION
+// ============================================================
+
+// application/service/CustomerServiceImpl.java
+package io.reactiveprogramming.crm.application.service;
+
+import io.reactiveprogramming.crm.domain.exception.CustomerNotFoundException;
+import io.reactiveprogramming.crm.domain.exception.DuplicateTaxIdException;
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.repository.CustomerRepository;
+import io.reactiveprogramming.crm.domain.service.CustomerService;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@Transactional
+public class CustomerServiceImpl implements CustomerService {
+    
+    private final CustomerRepository customerRepository;
+    
+    @Autowired
+    public CustomerServiceImpl(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+    
+    @Override
+    public Customer createCustomer(Customer customer) {
+        if (customerRepository.existsByTaxId(customer.getTaxId())) {
+            throw new DuplicateTaxIdException(
+                "Ya existe un cliente con el identificador fiscal: " + customer.getTaxId().getValue()
+            );
+        }
+        
+        return customerRepository.save(customer);
+    }
+    
+    @Override
+    public Customer updateCustomer(Long id, Customer customer) {
+        Customer existing = customerRepository.findById(id)
+            .orElseThrow(() -> new CustomerNotFoundException(id));
+        
+        existing.setName(customer.getName());
+        existing.setEmail(customer.getEmail());
+        existing.setPhone(customer.getPhone());
+        existing.setAddress(customer.getAddress());
+        
+        return customerRepository.save(existing);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Customer getCustomerById(Long id) {
+        return customerRepository.findById(id)
+            .orElseThrow(() -> new CustomerNotFoundException(id));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Customer getCustomerByCode(String customerCode) {
+        CustomerCode code = new CustomerCode(customerCode);
+        return customerRepository.findByCustomerCode(code)
+            .orElseThrow(() -> new CustomerNotFoundException(
+                "Cliente no encontrado con código: " + customerCode
+            ));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Customer> getAllCustomers() {
+        return customerRepository.findAll();
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Customer> getActiveCustomers() {
+        return customerRepository.findByActive(true);
+    }
+    
+    @Override
+    public void deactivateCustomer(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.deactivate();
+        customerRepository.save(customer);
+    }
+    
+    @Override
+    public void activateCustomer(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.activate();
+        customerRepository.save(customer);
+    }
+    
+    @Override
+    public void promoteToVip(Long id) {
+        Customer customer = getCustomerById(id);
+        customer.promoteToVip();
+        customerRepository.save(customer);
+    }
+}
+
+// application/service/ProductServiceImpl.java
+package io.reactiveprogramming.crm.application.service;
+
+import io.reactiveprogramming.crm.domain.exception.ProductNotFoundException;
+import io.reactiveprogramming.crm.domain.model.Product;
+import io.reactiveprogramming.crm.domain.repository.ProductRepository;
+import io.reactiveprogramming.crm.domain.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@Transactional
+public class ProductServiceImpl implements ProductService {
+    
+    private final ProductRepository productRepository;
+    
+    @Autowired
+    public ProductServiceImpl(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
+    
+    @Override
+    public Product createProduct(Product product) {
+        if (productRepository.existsBySku(product.getSku())) {
+            throw new IllegalArgumentException(
+                "Ya existe un producto con el SKU: " + product.getSku()
+            );
+        }
+        
+        return productRepository.save(product);
+    }
+    
+    @Override
+    public Product updateProduct(Long id, Product product) {
+        Product existing = productRepository.findById(id)
+            .orElseThrow(() -> new ProductNotFoundException(id));
+        
+        existing.setName(product.getName());
+        existing.setDescription(product.getDescription());
+        existing.setPrice(product.getPrice());
+        existing.setImageUrl(product.getImageUrl());
+        
+        return productRepository.save(existing);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Product getProductById(Long id) {
+        return productRepository.findById(id)
+            .orElseThrow(() -> new ProductNotFoundException(id));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Product getProductBySku(String sku) {
+        return productRepository.findBySku(sku)
+            .orElseThrow(() -> new ProductNotFoundException(
+                "Producto no encontrado con SKU: " + sku
+            ));
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> getAllProducts() {
+        return productRepository.findAll();
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> getActiveProducts() {
+        return productRepository.findByActive(true);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> searchProducts(String name) {
+        return productRepository.findByNameContaining(name);
+    }
+    
+    @Override
+    public void deactivateProduct(Long id) {
+        Product product = getProductById(id);
+        product.deactivate();
+        productRepository.save(product);
+    }
+    
+    @Override
+    public void activateProduct(Long id) {
+        Product product = getProductById(id);
+        product.activate();
+        productRepository.save(product);
+    }
+    
+    @Override
+    public void updateStock(Long id, int quantity) {
+        Product product = getProductById(id);
+        
+        if (quantity > 0) {
+            product.increaseStock(quantity);
+        } else if (quantity < 0) {
+            product.decreaseStock(Math.abs(quantity));
+        }
+        
+        productRepository.save(product);
+    }
+}
+
+// ============================================================
+// INFRASTRUCTURE LAYER - JPA ENTITIES
+// ============================================================
+
+// infrastructure/persistence/entity/CustomerEntity.java
+package io.reactiveprogramming.crm.infrastructure.persistence.entity;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import javax.persistence.*;
+
+@Entity
+@Table(name = "customers", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"tax_id", "tax_id_type"}),
+    @UniqueConstraint(columnNames = "customer_code")
+})
+@Inheritance(strategy = InheritanceType.JOINED)
+public class CustomerEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "customer_code", nullable = false, unique = true, length = 50)
+    private String customerCode;
+    
+    @Column(name = "name", nullable = false, length = 250)
+    private String name;
+    
+    @Column(name = "email", nullable = false, length = 100)
+    private String email;
+    
+    @Column(name = "phone", length = 20)
+    private String phone;
+    
+    @Column(name = "address", length = 500)
+    private String address;
+    
+    @Column(name = "tax_id", nullable = false, length = 20)
+    private String taxId;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_id_type", nullable = false, length = 20)
+    private TaxIdType taxIdType;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "customer_type", nullable = false, length = 20)
+    private CustomerType customerType;
+    
+    @Column(name = "active", nullable = false)
+    private Boolean active;
+    
+    public CustomerEntity() {
+        this.active = true;
+        this.customerType = CustomerType.REGULAR;
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getCustomerCode() { return customerCode; }
+    public void setCustomerCode(String customerCode) { this.customerCode = customerCode; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getTaxId() { return taxId; }
+    public void setTaxId(String taxId) { this.taxId = taxId; }
+    
+    public TaxIdType getTaxIdType() { return taxIdType; }
+    public void setTaxIdType(TaxIdType taxIdType) { this.taxIdType = taxIdType; }
+    
+    public CustomerType getCustomerType() { return customerType; }
+    public void setCustomerType(CustomerType customerType) { this.customerType = customerType; }
+    
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
+}
+
+// infrastructure/persistence/entity/ProductEntity.java
+package io.reactiveprogramming.crm.infrastructure.persistence.entity;
+
+import javax.persistence.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "products", uniqueConstraints = {
+    @UniqueConstraint(columnNames = "sku")
+})
+public class ProductEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "name", nullable = false, length = 200)
+    private String name;
+    
+    @Column(name = "description", length = 1000)
+    private String description;
+    
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
+    
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+    
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+    
+    @Column(name = "stock", nullable = false)
+    private Integer stock;
+    
+    @Column(name = "active", nullable = false)
+    private Boolean active;
+    
+    @Column(name = "sku", nullable = false, unique = true, length = 50)
+    private String sku;
+    
+    public ProductEntity() {
+        this.active = true;
+        this.stock = 0;
+        this.currency = "USD";
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+    
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    
+    public Integer getStock() { return stock; }
+    public void setStock(Integer stock) { this.stock = stock; }
+    
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
+    
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
+}
+
+// ============================================================
+// INFRASTRUCTURE LAYER - JPA REPOSITORIES
+// ============================================================
+
+// infrastructure/persistence/repository/JpaCustomerRepository.java
+package io.reactiveprogramming.crm.infrastructure.persistence.repository;
+
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.CustomerEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface JpaCustomerRepository extends JpaRepository<CustomerEntity, Long> {
+    Optional<CustomerEntity> findByCustomerCode(String customerCode);
+    Optional<CustomerEntity> findByTaxIdAndTaxIdType(String taxId, 
+        io.reactiveprogramming.crm.domain.enums.TaxIdType taxIdType);
+    List<CustomerEntity> findByActive(Boolean active);
+    boolean existsByTaxIdAndTaxIdType(String taxId, 
+        io.reactiveprogramming.crm.domain.enums.TaxIdType taxIdType);
+}
+
+// infrastructure/persistence/repository/JpaProductRepository.java
+package io.reactiveprogramming.crm.infrastructure.persistence.repository;
+
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.ProductEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface JpaProductRepository extends JpaRepository<ProductEntity, Long> {
+    Optional<ProductEntity> findBySku(String sku);
+    List<ProductEntity> findByActive(Boolean active);
+    List<ProductEntity> findByNameContainingIgnoreCase(String name);
+    boolean existsBySku(String sku);
+}
+
+// ============================================================
+// INFRASTRUCTURE LAYER - ENTITY MAPPERS
+// ============================================================
+
+// infrastructure/persistence/mapper/CustomerEntityMapper.java
+package io.reactiveprogramming.crm.infrastructure.persistence.mapper;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.CustomerEntity;
+import org.springframework.stereotype.Component;
+
+@Component
+public class CustomerEntityMapper {
+    
+    public CustomerEntity toEntity(Customer customer) {
+        CustomerEntity entity = new CustomerEntity();
+        entity.setId(customer.getId());
+        entity.setCustomerCode(customer.getCustomerCode().getValue());
+        entity.setName(customer.getName());
+        entity.setEmail(customer.getEmail());
+        entity.setPhone(customer.getPhone());
+        entity.setAddress(customer.getAddress());
+        entity.setTaxId(customer.getTaxId().getValue());
+        entity.setTaxIdType(customer.getTaxId().getType());
+        entity.setCustomerType(customer.getCustomerType());
+        entity.setActive(customer.isActive());
+        
+        return entity;
+    }
+    
+    public Customer toDomain(CustomerEntity entity) {
+        Customer customer = new Customer();
+        customer.setId(entity.getId());
+        customer.setCustomerCode(new CustomerCode(entity.getCustomerCode()));
+        customer.setName(entity.getName());
+        customer.setEmail(entity.getEmail());
+        customer.setPhone(entity.getPhone());
+        customer.setAddress(entity.getAddress());
+        customer.setTaxId(new TaxId(entity.getTaxId(), entity.getTaxIdType()));
+        customer.setCustomerType(entity.getCustomerType());
+        customer.setActive(entity.getActive());
+        
+        return customer;
+    }
+}
+
+// infrastructure/persistence/mapper/ProductEntityMapper.java
+package io.reactiveprogramming.crm.infrastructure.persistence.mapper;
+
+import io.reactiveprogramming.crm.domain.model.Product;
+import io.reactiveprogramming.crm.domain.valueobject.Money;
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.ProductEntity;
+import org.springframework.stereotype.Component;
+
+@Component
+public class ProductEntityMapper {
+    
+    public ProductEntity toEntity(Product product) {
+        ProductEntity entity = new ProductEntity();
+        entity.setId(product.getId());
+        entity.setName(product.getName());
+        entity.setDescription(product.getDescription());
+        entity.setPrice(product.getPrice().getAmount());
+        entity.setCurrency(product.getPrice().getCurrency());
+        entity.setImageUrl(product.getImageUrl());
+        entity.setStock(product.getStock());
+        entity.setActive(product.isActive());
+        entity.setSku(product.getSku());
+        
+        return entity;
+    }
+    
+    public Product toDomain(ProductEntity entity) {
+        Product product = new Product();
+        product.setId(entity.getId());
+        product.setName(entity.getName());
+        product.setDescription(entity.getDescription());
+        product.setPrice(new Money(entity.getPrice(), entity.getCurrency()));
+        product.setImageUrl(entity.getImageUrl());
+        product.setStock(entity.getStock());
+        product.setActive(entity.getActive());
+        product.setSku(entity.getSku());
+        
+        return product;
+    }
+}
+
+// ============================================================
+// INFRASTRUCTURE LAYER - REPOSITORY ADAPTERS
+// ============================================================
+
+// infrastructure/persistence/adapter/CustomerRepositoryAdapter.java
+package io.reactiveprogramming.crm.infrastructure.persistence.adapter;
+
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.repository.CustomerRepository;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.CustomerEntity;
+import io.reactiveprogramming.crm.infrastructure.persistence.mapper.CustomerEntityMapper;
+import io.reactiveprogramming.crm.infrastructure.persistence.repository.JpaCustomerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Component
+public class CustomerRepositoryAdapter implements CustomerRepository {
+    
+    private final JpaCustomerRepository jpaRepository;
+    private final CustomerEntityMapper mapper;
+    
+    @Autowired
+    public CustomerRepositoryAdapter(JpaCustomerRepository jpaRepository, 
+                                    CustomerEntityMapper mapper) {
+        this.jpaRepository = jpaRepository;
+        this.mapper = mapper;
+    }
+    
+    @Override
+    public Customer save(Customer customer) {
+        CustomerEntity entity = mapper.toEntity(customer);
+        CustomerEntity saved = jpaRepository.save(entity);
+        return mapper.toDomain(saved);
+    }
+    
+    @Override
+    public Optional<Customer> findById(Long id) {
+        return jpaRepository.findById(id)
+            .map(mapper::toDomain);
+    }
+    
+    @Override
+    public Optional<Customer> findByCustomerCode(CustomerCode customerCode) {
+        return jpaRepository.findByCustomerCode(customerCode.getValue())
+            .map(mapper::toDomain);
+    }
+    
+    @Override
+    public Optional<Customer> findByTaxId(TaxId taxId) {
+        return jpaRepository.findByTaxIdAndTaxIdType(taxId.getValue(), taxId.getType())
+            .map(mapper::toDomain);
+    }
+    
+    @Override
+    public List<Customer> findAll() {
+        return jpaRepository.findAll().stream()
+            .map(mapper::toDomain)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<Customer> findByActive(boolean active) {
+        return jpaRepository.findByActive(active).stream()
+            .map(mapper::toDomain)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
+    
+    @Override
+    public boolean existsByTaxId(TaxId taxId) {
+        return jpaRepository.existsByTaxIdAndTaxIdType(taxId.getValue(), taxId.getType());
+    }
+}
+
+// infrastructure/persistence/adapter/ProductRepositoryAdapter.java
+package io.reactiveprogramming.crm.infrastructure.persistence.adapter;
+
+import io.reactiveprogramming.crm.domain.model.Product;
+import io.reactiveprogramming.crm.domain.repository.ProductRepository;
+import io.reactiveprogramming.crm.infrastructure.persistence.entity.ProductEntity;
+import io.reactiveprogramming.crm.infrastructure.persistence.mapper.ProductEntityMapper;
+import io.reactiveprogramming.crm.infrastructure.persistence.repository.JpaProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Component
+public class ProductRepositoryAdapter implements ProductRepository {
+    
+    private final JpaProductRepository jpaRepository;
+    private final ProductEntityMapper mapper;
+    
+    @Autowired
+    public ProductRepositoryAdapter(JpaProductRepository jpaRepository, 
+                                   ProductEntityMapper mapper) {
+        this.jpaRepository = jpaRepository;
+        this.mapper = mapper;
+    }
+    
+    @Override
+    public Product save(Product product) {
+        ProductEntity entity = mapper.toEntity(product);
+        ProductEntity saved = jpaRepository.save(entity);
+        return mapper.toDomain(saved);
+    }
+    
+    @Override
+    public Optional<Product> findById(Long id) {
+        return jpaRepository.findById(id)
+            .map(mapper::toDomain);
+    }
+    
+    @Override
+    public Optional<Product> findBySku(String sku) {
+        return jpaRepository.findBySku(sku)
+            .map(mapper::toDomain);
+    }
+    
+    @Override
+    public List<Product> findAll() {
+        return jpaRepository.findAll().stream()
+            .map(mapper::toDomain)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<Product> findByActive(boolean active) {
+        return jpaRepository.findByActive(active).stream()
+            .map(mapper::toDomain)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<Product> findByNameContaining(String name) {
+        return jpaRepository.findByNameContainingIgnoreCase(name).stream()
+            .map(mapper::toDomain)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
+    
+    @Override
+    public boolean existsBySku(String sku) {
+        return jpaRepository.existsBySku(sku);
+    }
+}
+
+// ============================================================
+// PRESENTATION LAYER - REST CONTROLLERS
+// ============================================================
+
+// presentation/rest/CustomerController.java
+package io.reactiveprogramming.crm.presentation.rest;
+
+import io.reactiveprogramming.crm.application.dto.request.CreateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateCustomerRequest;
+import io.reactiveprogramming.crm.application.dto.response.CustomerResponse;
+import io.reactiveprogramming.crm.application.mapper.CustomerMapper;
+import io.reactiveprogramming.crm.domain.model.Customer;
+import io.reactiveprogramming.crm.domain.service.CustomerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/v1/customers")
+@Validated
+public class CustomerController {
+    
+    private final CustomerService customerService;
+    private final CustomerMapper customerMapper;
+    
+    @Autowired
+    public CustomerController(CustomerService customerService, 
+                             CustomerMapper customerMapper) {
+        this.customerService = customerService;
+        this.customerMapper = customerMapper;
+    }
+    
+    @PostMapping
+    public ResponseEntity<CustomerResponse> createCustomer(
+            @RequestBody @Valid CreateCustomerRequest request) {
+        Customer customer = customerMapper.toDomain(request);
+        Customer created = customerService.createCustomer(customer);
+        CustomerResponse response = customerMapper.toResponse(created);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<CustomerResponse> getCustomerById(@PathVariable Long id) {
+        Customer customer = customerService.getCustomerById(id);
+        CustomerResponse response = customerMapper.toResponse(customer);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/code/{customerCode}")
+    public ResponseEntity<CustomerResponse> getCustomerByCode(
+            @PathVariable String customerCode) {
+        Customer customer = customerService.getCustomerByCode(customerCode);
+        CustomerResponse response = customerMapper.toResponse(customer);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<CustomerResponse>> getAllCustomers(
+            @RequestParam(required = false) Boolean active) {
+        List<Customer> customers;
+        
+        if (active != null && active) {
+            customers = customerService.getActiveCustomers();
+        } else {
+            customers = customerService.getAllCustomers();
+        }
+        
+        List<CustomerResponse> response = customers.stream()
+            .map(customerMapper::toResponse)
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<CustomerResponse> updateCustomer(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCustomerRequest request) {
+        Customer existing = customerService.getCustomerById(id);
+        customerMapper.updateDomain(existing, request);
+        Customer updated = customerService.updateCustomer(id, existing);
+        CustomerResponse response = customerMapper.toResponse(updated);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<Void> deactivateCustomer(@PathVariable Long id) {
+        customerService.deactivateCustomer(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<Void> activateCustomer(@PathVariable Long id) {
+        customerService.activateCustomer(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PatchMapping("/{id}/promote-vip")
+    public ResponseEntity<Void> promoteToVip(@PathVariable Long id) {
+        customerService.promoteToVip(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
+        customerService.deactivateCustomer(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+// presentation/rest/ProductController.java
+package io.reactiveprogramming.crm.presentation.rest;
+
+import io.reactiveprogramming.crm.application.dto.request.CreateProductRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateProductRequest;
+import io.reactiveprogramming.crm.application.dto.request.UpdateStockRequest;
+import io.reactiveprogramming.crm.application.dto.response.ProductResponse;
+import io.reactiveprogramming.crm.application.mapper.ProductMapper;
+import io.reactiveprogramming.crm.domain.model.Product;
+import io.reactiveprogramming.crm.domain.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/v1/products")
+@Validated
+public class ProductController {
+    
+    private final ProductService productService;
+    private final ProductMapper productMapper;
+    
+    @Autowired
+    public ProductController(ProductService productService, 
+                            ProductMapper productMapper) {
+        this.productService = productService;
+        this.productMapper = productMapper;
+    }
+    
+    @PostMapping
+    public ResponseEntity<ProductResponse> createProduct(
+            @RequestBody @Valid CreateProductRequest request) {
+        Product product = productMapper.toDomain(request);
+        Product created = productService.createProduct(product);
+        ProductResponse response = productMapper.toResponse(created);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
+        Product product = productService.getProductById(id);
+        ProductResponse response = productMapper.toResponse(product);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/sku/{sku}")
+    public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
+        Product product = productService.getProductBySku(sku);
+        ProductResponse response = productMapper.toResponse(product);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<ProductResponse>> getAllProducts(
+            @RequestParam(required = false) Boolean active) {
+        List<Product> products;
+        
+        if (active != null && active) {
+            products = productService.getActiveProducts();
+        } else {
+            products = productService.getAllProducts();
+        }
+        
+        List<ProductResponse> response = products.stream()
+            .map(productMapper::toResponse)
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductResponse>> searchProducts(
+            @RequestParam String name) {
+        List<Product> products = productService.searchProducts(name);
+        List<ProductResponse> response = products.stream()
+            .map(productMapper::toResponse)
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductResponse> updateProduct(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateProductRequest request) {
+        Product existing = productService.getProductById(id);
+        productMapper.updateDomain(existing, request);
+        Product updated = productService.updateProduct(id, existing);
+        ProductResponse response = productMapper.toResponse(updated);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PatchMapping("/{id}/stock")
+    public ResponseEntity<ProductResponse> updateStock(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateStockRequest request) {
+        int quantity = request.getQuantity();
+        
+        if ("SUBTRACT".equalsIgnoreCase(request.getOperation())) {
+            quantity = -quantity;
+        }
+        
+        productService.updateStock(id, quantity);
+        Product product = productService.getProductById(id);
+        ProductResponse response = productMapper.toResponse(product);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<Void> deactivateProduct(@PathVariable Long id) {
+        productService.deactivateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<Void> activateProduct(@PathVariable Long id) {
+        productService.activateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        productService.deactivateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+// ============================================================
+// PRESENTATION LAYER - EXCEPTION HANDLER
+// ============================================================
+
+// presentation/exception/GlobalExceptionHandler.java
+package io.reactiveprogramming.crm.presentation.exception;
+
+import io.reactiveprogramming.crm.domain.exception.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(CustomerNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCustomerNotFoundException(
+            CustomerNotFoundException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+    
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleProductNotFoundException(
+            ProductNotFoundException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+    
+    @ExceptionHandler(DuplicateTaxIdException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateTaxIdException(
+            DuplicateTaxIdException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+    
+    @ExceptionHandler(InvalidTaxIdException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTaxIdException(
+            InvalidTaxIdException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientStockException(
+            InsufficientStockException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(
+            IllegalStateException ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
+            MethodArgumentNotValidException ex, WebRequest request) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            "Error de validación",
+            LocalDateTime.now(),
+            request.getDescription(false),
+            errors
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGlobalException(
+            Exception ex, WebRequest request) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            "Error interno del servidor: " + ex.getMessage(),
+            LocalDateTime.now(),
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+
+// presentation/exception/ErrorResponse.java
+package io.reactiveprogramming.crm.presentation.exception;
+
+import java.time.LocalDateTime;
+
+public class ErrorResponse {
+    private int status;
+    private String message;
+    private LocalDateTime timestamp;
+    private String path;
+    
+    public ErrorResponse(int status, String message, LocalDateTime timestamp, String path) {
+        this.status = status;
+        this.message = message;
+        this.timestamp = timestamp;
+        this.path = path;
+    }
+    
+    // Getters and Setters
+    public int getStatus() { return status; }
+    public void setStatus(int status) { this.status = status; }
+    
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+    
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+    
+    public String getPath() { return path; }
+    public void setPath(String path) { this.path = path; }
+}
+
+// presentation/exception/ValidationErrorResponse.java
+package io.reactiveprogramming.crm.presentation.exception;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+
+public class ValidationErrorResponse extends ErrorResponse {
+    private Map<String, String> validationErrors;
+    
+    public ValidationErrorResponse(int status, String message, LocalDateTime timestamp, 
+                                  String path, Map<String, String> validationErrors) {
+        super(status, message, timestamp, path);
+        this.validationErrors = validationErrors;
+    }
+    
+    public Map<String, String> getValidationErrors() {
+        return validationErrors;
+    }
+    
+    public void setValidationErrors(Map<String, String> validationErrors) {
+        this.validationErrors = validationErrors;
+    }
+}
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+// infrastructure/config/DatabaseConfig.java
+package io.reactiveprogramming.crm.infrastructure.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+@Configuration
+@EnableJpaRepositories(basePackages = "io.reactiveprogramming.crm.infrastructure.persistence.repository")
+@EnableTransactionManagement
+public class DatabaseConfig {
+    // Configuración adicional de base de datos si es necesaria
+}
+
+// infrastructure/config/WebConfig.java
+package io.reactiveprogramming.crm.infrastructure.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+            .allowedOrigins("http://localhost:3000", "http://localhost:4200")
+            .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            .allowedHeaders("*")
+            .allowCredentials(true)
+            .maxAge(3600);
+    }
+}
+
+// ============================================================
+// APPLICATION MAIN CLASS
+// ============================================================
+
+// CrmApplication.java
+package io.reactiveprogramming.crm;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class CrmApplication {
+    
+    public static void main(String[] args) {
+        SpringApplication.run(CrmApplication.class, args);
+    }
+}
+
+// ============================================================
+// APPLICATION.PROPERTIES (application.yml)
+// ============================================================
+
+/*
+# application.yml
+
+spring:
+  application:
+    name: crm-microservice
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/crm_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: America/Guayaquil
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    io.reactiveprogramming.crm: DEBUG
+    org.springframework.web: INFO
+    org.hibernate: INFO
+*/
+
+// ============================================================
+// POM.XML DEPENDENCIES
+// ============================================================
+
+/*
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.14</version>
+        <relativePath/>
+    </parent>
+    
+    <groupId>io.reactiveprogramming</groupId>
+    <artifactId>crm-microservice</artifactId>
+    <version>1.0.0</version>
+    <name>CRM Microservice</name>
+    <description>CRM Microservice with Hexagonal Architecture</description>
+    
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+    
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        
+        <!-- PostgreSQL Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- H2 Database (para testing) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Lombok (Opcional pero recomendado) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Spring Boot DevTools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Springdoc OpenAPI (Swagger) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.7.0</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+*/
+
+// ============================================================
+// EJEMPLO DE PRUEBAS UNITARIAS
+// ============================================================
+
+// test/domain/model/CustomerTest.java
+package io.reactiveprogramming.crm.domain.model;
+
+import io.reactiveprogramming.crm.domain.enums.CustomerType;
+import io.reactiveprogramming.crm.domain.enums.TaxIdType;
+import io.reactiveprogramming.crm.domain.valueobject.CustomerCode;
+import io.reactiveprogramming.crm.domain.valueobject.TaxId;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class CustomerTest {
+    
+    @Test
+    void shouldCreateCustomerSuccessfully() {
+        // Arrange
+        TaxId taxId = new TaxId("1712345678", TaxIdType.CEDULA);
+        CustomerCode code = new CustomerCode("REG-2025-00001");
+        
+        // Act
+        Customer customer = new Customer("Juan Pérez", "juan@email.com", taxId, code);
+        
+        // Assert
+        assertNotNull(customer);
+        assertEquals("Juan Pérez", customer.getName());
+        assertEquals("juan@email.com", customer.getEmail());
+        assertTrue(customer.isActive());
+        assertEquals(CustomerType.REGULAR, customer.getCustomerType());
+    }
+    
+    @Test
+    void shouldPromoteCustomerToVip() {
+        // Arrange
+        Customer customer = new Customer();
+        customer.setCustomerType(CustomerType.REGULAR);
+        
+        // Act
+        customer.promoteToVip();
+        
+        // Assert
+        assertTrue(customer.isVip());
+        assertEquals(CustomerType.VIP, customer.getCustomerType());
+    }
+    
+    @Test
+    void shouldDeactivateCustomer() {
+        // Arrange
+        Customer customer = new Customer();
+        customer.setActive(true);
+        
+        // Act
+        customer.deactivate();
+        
+        // Assert
+        assertFalse(customer.isActive());
+    }
+    
+    @Test
+    void shouldThrowExceptionWhenDeactivatingInactiveCustomer() {
+        // Arrange
+        Customer customer = new Customer();
+        customer.setActive(false);
+        
+        // Act & Assert
+        assertThrows(IllegalStateException.class, customer::deactivate);
+    }
+}
+
+// test/domain/model/ProductTest.java
+package io.reactiveprogramming.crm.domain.model;
+
+import io.reactiveprogramming.crm.domain.valueobject.Money;
+import org.junit.jupiter.api.Test;
+import java.math.BigDecimal;
+import static org.junit.jupiter.api.Assertions.*;
+
+class ProductTest {
+    
+    @Test
+    void shouldCreateProductSuccessfully() {
+        // Arrange & Act
+        Money price = new Money(99.99);
+        Product product = new Product("Laptop", price);
+        
+        // Assert
+        assertNotNull(product);
+        assertEquals("Laptop", product.getName());
+        assertEquals(price, product.getPrice());
+        assertTrue(product.isActive());
+    }
+    
+    @Test
+    void shouldIncreaseStockCorrectly() {
+        // Arrange
+        Product product = new Product();
+        product.setStock(10);
+        
+        // Act
+        product.increaseStock(5);
+        
+        // Assert
+        assertEquals(15, product.getStock());
+    }
+    
+    @Test
+    void shouldDecreaseStockCorrectly() {
+        // Arrange
+        Product product = new Product();
+        product.setStock(10);
+        
+        // Act
+        product.decreaseStock(3);
+        
+        // Assert
+        assertEquals(7, product.getStock());
+    }
+    
+    @Test
+    void shouldThrowExceptionWhenInsufficientStock() {
+        // Arrange
+        Product product = new Product();
+        product.setStock(5);
+        
+        // Act & Assert
+        assertThrows(IllegalStateException.class, () -> product.decreaseStock(10));
+    }
+    
+    @Test
+    void shouldReturnTrueWhenProductIsAvailable() {
+        // Arrange
+        Product product = new Product();
+        product.setActive(true);
+        product.setStock(5);
+        
+        // Act & Assert
+        assertTrue(product.isAvailable());
+    }
+    
+    @Test
+    void shouldReturnFalseWhenProductIsNotAvailable() {
+        // Arrange
+        Product product = new Product();
+        product.setActive(true);
+        product.setStock(0);
+        
+        // Act & Assert
+        assertFalse(product.isAvailable());
+    }
+}
+
+// ============================================================
+// README - ENDPOINTS DOCUMENTATION
+// ============================================================
+
+/*
+# CRM Microservice - API Endpoints
+
+## Customer Endpoints
+
+### Create Customer
+POST /api/v1/customers
+Body:
+{
+    "name": "Juan Pérez",
+    "email": "juan@email.com",
+    "phone": "+593999123456",
+    "address": "Quito, Ecuador",
+    "taxId": "1712345678",
+    "taxIdType": "CEDULA",
+    "customerType": "REGULAR"
+}
+
+### Get Customer by ID
+GET /api/v1/customers/{id}
+
+### Get Customer by Code
+GET /api/v1/customers/code/{customerCode}
+
+### Get All Customers
+GET /api/v1/customers
+GET /api/v1/customers?active=true
+
+### Update Customer
+PUT /api/v1/customers/{id}
+Body:
+{
+    "name": "Juan Carlos Pérez",
+    "email": "juanc@email.com",
+    "phone": "+593999123456",
+    "address": "Guayaquil, Ecuador"
+}
+
+### Deactivate Customer
+PATCH /api/v1/customers/{id}/deactivate
+
+### Activate Customer
+PATCH /api/v1/customers/{id}/activate
+
+### Promote to VIP
+PATCH /api/v1/customers/{id}/promote-vip
+
+### Delete Customer (Soft Delete)
+DELETE /api/v1/customers/{id}
+
+---
+
+## Product Endpoints
+
+### Create Product
+POST /api/v1/products
+Body:
+{
+    "name": "Laptop Dell XPS 15",
+    "description": "Laptop de alto rendimiento",
+    "price": 1299.99,
+    "imageUrl": "https://example.com/laptop.jpg",
+    "stock": 50,
+    "sku": "LAP-DELL-XPS15-001"
+}
+
+### Get Product by ID
+GET /api/v1/products/{id}
+
+### Get Product by SKU
+GET /api/v1/products/sku/{sku}
+
+### Get All Products
+GET /api/v1/products
+GET /api/v1/products?active=true
+
+### Search Products
+GET /api/v1/products/search?name=laptop
+
+### Update Product
+PUT /api/v1/products/{id}
+Body:
+{
+    "name": "Laptop Dell XPS 15 (2025)",
+    "description": "Laptop actualizada",
+    "price": 1399.99,
+    "imageUrl": "https://example.com/laptop-new.jpg"
+}
+
+### Update Stock
+PATCH /api/v1/products/{id}/stock
+Body:
+{
+    "quantity": 10,
+    "operation": "ADD"
+}
+// operation: "ADD" or "SUBTRACT"
+
+### Deactivate Product
+PATCH /api/v1/products/{id}/deactivate
+
+### Activate Product
+PATCH /api/v1/products/{id}/activate
+
+### Delete Product (Soft Delete)
+DELETE /api/v1/products/{id}
+
+---
+
+## Swagger UI
+http://localhost:8080/swagger-ui.html
+
+## Health Check
+GET /actuator/health
+*/

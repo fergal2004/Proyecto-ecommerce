@@ -1,0 +1,53 @@
+sequenceDiagram
+    autonumber
+    
+    %% --- CAPAS DEL BLUEPRINT (Service Blueprint Layers) ---
+    %% 1. Acciones del Cliente
+    box rgb(255, 250, 240) "Capa 1: Cliente"
+        actor Cliente as Cliente
+    end
+
+    %% 2. Evidencia Física / Interfaz Visible (Frontstage)
+    box rgb(255, 255, 224) "Capa 2: Acciones Visibles (Frontstage)"
+        participant Web as Interfaz Web<br>(Evidencia Física)
+    end
+
+    %% 3. Acciones Invisibles / Backend (Backstage)
+    box rgb(240, 255, 240) "Capa 3: Acciones Invisibles (Backstage)"
+        participant Gateway as API Gateway
+        participant Micro as Microservicios<br>(Customer/Product/Order)
+    end
+
+    %% 4. Procesos de Soporte (Infraestructura)
+    box rgb(245, 245, 245) "Capa 4: Procesos de Soporte"
+        participant DB as Base de Datos
+        participant Ext as Sistema Envíos
+    end
+
+    %% --- FLUJO DEL SERVICIO ---
+    
+    Note over Cliente, Ext: FASE 1: DESCUBRIMIENTO
+    Cliente->>Web: 1. Busca productos (Filtros)
+    Web->>Gateway: Solicita búsqueda
+    Gateway->>Micro: Procesa lógica de búsqueda
+    Micro->>DB: Consulta catálogo (SQL)
+    DB-->>Web: Retorna lista de productos
+    Web-->>Cliente: Muestra resultados (Galería)
+
+    Note over Cliente, Ext: FASE 2: COMPRA
+    Cliente->>Web: 2. Añade al carrito y Checkout
+    Web->>Gateway: Envia orden de compra
+    Gateway->>Micro: Orquestación (Validar Stock/Usuario)
+    Micro->>Micro: Reglas de Negocio (VIP/Regular)
+    Micro->>DB: Registra Orden (Estado: PENDING)
+    
+    Note over Cliente, Ext: FASE 3: PAGO
+    Cliente->>Web: 3. Ingresa datos de pago
+    Web->>Micro: Procesa transacción
+    Micro->>DB: Actualiza Estado (PAID)
+    Micro-->>Web: Confirmación de compra
+    Web-->>Cliente: Muestra recibo digital
+
+    Note over Cliente, Ext: FASE 4: POST-VENTA (Soporte)
+    Micro->>Ext: 4. Notifica a Logística (Trigger Envío)
+    Ext-->>Cliente: Email con Tracking Number
