@@ -1,49 +1,62 @@
-import React, { Suspense, lazy } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Importación de Componentes (Arquitectura Limpia)
-import Navbar from "./components/Navbar";
-import PrivateRoute from "./components/PrivateRoute";
-import Loading from "./components/Loading";
+// --- 1. IMPORTS DE CONTEXTO ---
+import { AuthProvider } from './hooks/useAuth'; 
+import { CartProvider } from './context/CartContext'; 
 
-// Lazy Loading (Optimización)
-const Login = lazy(() => import("./views/auth/Login"));
-const ProductList = lazy(() => import("./views/products/ProductList"));
-const ProductDetail = lazy(() => import("./views/products/ProductDetail")); // Nueva ruta
-const CustomerProfile = lazy(() => import("./views/customers/CustomerProfile"));
+// --- 2. IMPORTS DE COMPONENTES GLOBALES ---
+import Navbar from './components/Navbar';
+import PrivateRoute from './components/PrivateRoute'; 
 
-export default function App() {
+// --- 3. IMPORTS DE VISTAS (PÁGINAS) ---
+import ProductList from './views/products/ProductList';
+import ProductDetail from './views/products/ProductDetail';
+import CartView from './views/orders/CartView';
+import UserProfile from './views/profile/UserProfile'; 
+import OrderHistory from './views/orders/OrderHistory'; 
+// Login solo para administradores (Keycloak)
+import LoginView from './views/auth/Login'; 
+
+function App() {
   return (
-    <Router>
-      {/* El Navbar se mostrará siempre, podrías condicionarlo si quieres ocultarlo en login */}
-      <Navbar />
-
-      <Suspense fallback={<Loading />}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <AuthProvider>
+      <CartProvider> 
+        <Router>
+          <Navbar /> 
           
-          <Route path="/products" element={
-            <PrivateRoute>
-              <ProductList />
-            </PrivateRoute>
-          } />
-          
-          {/* Nueva Ruta de Detalle */}
-          <Route path="/products/:id" element={
-            <PrivateRoute>
-              <ProductDetail />
-            </PrivateRoute>
-          } />
+          <Routes>
+            {/* --- RUTAS PÚBLICAS --- */}
+            <Route path="/" element={<ProductList />} />
+            <Route path="/products" element={<ProductList />} />
+            <Route path="/products/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<CartView />} />
+            
+            {/* RUTA DE LOGIN (Solo Administradores) */}
+            <Route path="/login" element={<LoginView />} />
 
-          <Route path="/profile" element={
-            <PrivateRoute>
-              <CustomerProfile />
-            </PrivateRoute>
-          } />
-
-          <Route path="*" element={<Navigate to="/products" />} />
-        </Routes>
-      </Suspense>
-    </Router>
+            {/* --- RUTAS PRIVADAS (Requieren Token) --- */}
+            <Route 
+              path="/profile" 
+              element={
+                <PrivateRoute>
+                  <UserProfile />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/orders" 
+              element={
+                <PrivateRoute>
+                  <OrderHistory />
+                </PrivateRoute>
+              } 
+            />
+          </Routes>
+        </Router>
+      </CartProvider>
+    </AuthProvider>
   );
 }
+
+export default App;

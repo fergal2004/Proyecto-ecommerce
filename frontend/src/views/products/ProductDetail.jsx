@@ -1,98 +1,92 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ProductService } from '../../services/product.service';
-import { Container, Typography, Button, Paper, Alert, Box, CircularProgress } from '@mui/material';
+import { ProductService } from '../../services/product.service'; // <--- Importación corregida con { }
+import { useCart } from '../../context/CartContext';
+import { Container, Typography, Button, Paper, Grid, Box, Chip } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const ProductDetail = () => {
-  const { id } = useParams(); // Obtiene el ID de la URL
+  const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        setLoading(true);
-        // Llamamos al servicio
         const response = await ProductService.getById(id);
-        // Guardamos SOLO los datos (response.data)
         setProduct(response.data);
-      } catch (err) {
-        console.error("Error cargando producto:", err);
-        setError("No se pudo cargar la información del producto.");
+      } catch (error) {
+        console.error("Error al cargar producto", error);
       } finally {
         setLoading(false);
       }
     };
-    
-    if (id) {
-      fetchProduct();
-    }
+    fetchProduct();
   }, [id]);
 
-  // 1. Estado de Carga
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-        <CircularProgress />
-        <Typography style={{ marginLeft: '10px' }}>Buscando producto...</Typography>
-      </Box>
-    );
-  }
+  if (loading) return <p style={{ padding: 20 }}>Cargando detalle...</p>;
+  if (!product) return <p style={{ padding: 20 }}>Producto no encontrado</p>;
 
-  // 2. Estado de Error
-  if (error) {
-    return (
-      <Container style={{ marginTop: '20px' }}>
-        <Alert severity="error">{error}</Alert>
-        <Button component={Link} to="/products" style={{ marginTop: '10px' }}>
-          Volver al catálogo
-        </Button>
-      </Container>
-    );
-  }
-
-  // 3. Estado Sin Datos (por si acaso)
-  if (!product) return <p>Producto no encontrado.</p>;
-
-  // 4. Vista Exitosa
   return (
-    <Container maxWidth="md" style={{ marginTop: '20px' }}>
-      <Paper elevation={3} style={{ padding: '30px' }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {product.name}
-        </Typography>
-        
-        <Typography variant="subtitle1" color="textSecondary" gutterBottom>
-          SKU: {product.sku}
-        </Typography>
-        
-        <Box my={3}>
-          <Typography variant="body1">
-            {product.description || "Sin descripción técnica disponible para este producto."}
-          </Typography>
-        </Box>
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Button startIcon={<ArrowBackIcon />} component={Link} to="/products" sx={{ mb: 2 }}>
+        Volver al Catálogo
+      </Button>
 
-        <Typography variant="h5" color="primary" gutterBottom>
-          Precio: ${product.price}
-        </Typography>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Box 
+              sx={{ 
+                height: 300, 
+                bgcolor: '#f5f5f5', 
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#aaa'
+              }}
+            >
+              [Imagen del Producto]
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>{product.name}</Typography>
+            <Chip 
+              label={`SKU: ${product.sku}`} 
+              size="small" 
+              sx={{ mb: 2 }} 
+            />
+            
+            <Typography variant="body1" paragraph>
+              {product.description || "Sin descripción disponible para este producto."}
+            </Typography>
 
-        <Typography 
-          variant="h6" 
-          color={product.stock > 0 ? "success.main" : "error.main"} 
-          gutterBottom
-        >
-          {product.stock > 0 ? `Disponible: ${product.stock} unidades` : "Agotado"}
-        </Typography>
-        
-        <Box mt={4}>
-          <Button variant="contained" color="primary" style={{ marginRight: '10px' }}>
-            Añadir al Carrito
-          </Button>
-          <Button variant="outlined" component={Link} to="/products">
-            Volver
-          </Button>
-        </Box>
+            <Typography variant="h3" color="primary" fontWeight="bold" sx={{ my: 3 }}>
+              ${product.price}
+            </Typography>
+
+            <Typography 
+              variant="subtitle1" 
+              color={product.stock > 0 ? "success.main" : "error.main"} 
+              fontWeight="bold" 
+              sx={{ mb: 3 }}
+            >
+              Estado: {product.stock > 0 ? `En Stock (${product.stock})` : "Agotado"}
+            </Typography>
+
+            <Button 
+              variant="contained" 
+              size="large" 
+              fullWidth
+              disabled={product.stock <= 0}
+              onClick={() => addToCart(product)}
+            >
+              Agregar al Carrito
+            </Button>
+          </Grid>
+        </Grid>
       </Paper>
     </Container>
   );

@@ -16,7 +16,7 @@ public class CustomerResponse {
 
     private Long id;
     private String customerCode;
-    private String name;
+    private String name; 
     private String email;
     private String phone;
     private String address;
@@ -24,6 +24,7 @@ public class CustomerResponse {
     private TaxIdType taxIdType;
     private CustomerType customerType;
     private Boolean active;
+    private String state;
     private Float discount;
     private LocalDateTime createdAt;
 }

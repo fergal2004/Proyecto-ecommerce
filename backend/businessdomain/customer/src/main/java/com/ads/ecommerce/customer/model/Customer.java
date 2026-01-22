@@ -39,7 +39,10 @@ public class Customer extends Person {
     
     @Column(nullable = false)
     private Boolean active = true;
-    
+
+    @Column(nullable = false)
+    private String state = "GUEST";
+
     @CreationTimestamp
     private LocalDateTime createdAt;
     

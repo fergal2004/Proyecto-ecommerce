@@ -28,16 +28,24 @@ public class ProductService {
     
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
-        log.info("Creating product: {}", request.getSku());
+        log.info("Creating product request received");
         
-        // Validar SKU único
-        if (productRepository.existsBySku(request.getSku())) {
-            throw new IllegalArgumentException("Ya existe un producto con el SKU: " + request.getSku());
+        String finalSku = request.getSku();
+
+        // 1. Lógica de Generación Automática
+        if (finalSku == null || finalSku.trim().isEmpty()) {
+            // Generar un SKU aleatorio: PROD-12345
+            finalSku = "PROD-" + (int)(Math.random() * 100000);
+        } else {
+            // Si el usuario envió uno, validamos que no exista
+            if (productRepository.existsBySku(finalSku)) {
+                throw new IllegalArgumentException("Ya existe un producto con el SKU: " + finalSku);
+            }
         }
         
         // Crear producto
         Product product = new Product();
-        product.setSku(request.getSku().toUpperCase());
+        product.setSku(finalSku.toUpperCase()); 
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
@@ -47,7 +55,7 @@ public class ProductService {
         product.setActive(true);
         
         Product saved = productRepository.save(product);
-        log.info("Product created with ID: {}", saved.getId());
+        log.info("Product created with ID: {} and SKU: {}", saved.getId(), saved.getSku());
         
         return toResponse(saved);
     }
@@ -118,6 +126,7 @@ public class ProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
+        product.setStock(request.getStock());
         product.setCategory(request.getCategory());
         product.setImageUrl(request.getImageUrl());
         

@@ -1,74 +1,119 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Card from '@mui/material/Card';
-import Typography from '@mui/material/Typography';
+import React, { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth'; 
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { 
+  Container, TextField, Button, Paper, Typography, Box, Alert, CircularProgress 
+} from '@mui/material';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 
-export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+const LoginView = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const { login } = useAuth(); // Tu función del contexto para guardar el token
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
-      const response = await fetch("http://localhost:8080/api/security/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+      // 1. Llamamos a TU backend fusionado
+      // NOTA LA RUTA: Ahora es /customer/api/v1/customers/login porque lo metimos en CustomerController
+      const response = await axios.post('http://localhost:8080/customer/api/v1/customers/login', {
+        email: email,
+        password: password
       });
 
-      if (!response.ok) throw new Error("Error en login");
+      // 2. Si todo sale bien, obtenemos el token
+      // Buscamos 'access_token' directamente o dentro de 'token_response' por si acaso
+      const data = response.data;
+      const accessToken = data.access_token || data.token_response?.access_token;
       
-      const data = await response.json();
-      
-      // --- CAMBIO IMPORTANTE AQUÍ ---
-      // Verificamos si existe la estructura que vimos en Postman
-      const token = data.token_response?.access_token; 
-
-      if (token) {
-        // Guardamos el token real
-        localStorage.setItem("access_token", token);
-        // Redirigimos
-        navigate("/products"); 
+      if (accessToken) {
+        // 3. Guardamos sesión y redirigimos
+        login(accessToken); // Esto guarda en localStorage y actualiza el estado
+        navigate('/'); // Redirige al Home
       } else {
-        alert("El servidor respondió, pero no envió el token correctamente.");
-        console.log("Respuesta recibida:", data); // Para depurar si falla
+        setError("El servidor respondió, pero no envió el token.");
       }
-      // -----------------------------
 
     } catch (err) {
       console.error(err);
-      alert("Credenciales incorrectas o error de conexión");
+      // Intentamos mostrar el mensaje de error que manda el backend, si existe
+      if (err.response && err.response.data) {
+        setError(typeof err.response.data === 'string' ? err.response.data : "Credenciales incorrectas");
+      } else {
+        setError("Error de conexión o credenciales incorrectas.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '50px' }}>
-      <Card style={{ padding: '20px', width: '300px' }}>
-        <Typography variant="h5" gutterBottom>Iniciar Sesión</Typography>
-        <form onSubmit={handleSubmit}>
-          <TextField 
-            label="Usuario" 
-            fullWidth 
+    <Container maxWidth="xs" sx={{ mt: 8, mb: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        
+        {/* ICONO Y TÍTULO */}
+        <Box sx={{ m: 1, bgcolor: 'primary.main', borderRadius: '50%', p: 1 }}>
+          <LockOpenIcon sx={{ color: 'white' }} />
+        </Box>
+        <Typography component="h1" variant="h5" fontWeight="bold">
+          Acceso Administrativo
+        </Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+          Solo personal autorizado
+        </Typography>
+
+        {/* ALERTA DE ERROR */}
+        {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
+
+        {/* FORMULARIO */}
+        <Box component="form" onSubmit={handleLogin} sx={{ mt: 1, width: '100%' }}>
+          <TextField
             margin="normal"
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
+            required
+            fullWidth
+            label="Correo Electrónico"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
-          <TextField 
-            label="Contraseña" 
-            type="password" 
-            fullWidth 
+          <TextField
             margin="normal"
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
+            required
+            fullWidth
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" variant="contained" color="primary" fullWidth style={{ marginTop: '10px' }}>
-            Ingresar
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            size="large"
+            disabled={loading}
+            sx={{ mt: 3, mb: 2, py: 1.5 }}
+          >
+            {loading ? <CircularProgress size={24} color="inherit"/> : "INGRESAR"}
           </Button>
-        </form>
-      </Card>
-    </div>
+          
+          <Box textAlign="center" mt={2}>
+            <Typography variant="caption" color="textSecondary">
+              Para comprar no necesitas cuenta. Simplemente agrega productos al carrito.
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+    </Container>
   );
-}
+};
+
+export default LoginView;
